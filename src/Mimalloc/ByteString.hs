@@ -9,12 +9,15 @@ Maintainer  : ian@iankduncan.com
 This module provides integration between mimalloc and ByteString,
 allowing you to create ByteStrings backed by mimalloc-allocated memory.
 
-== Thread Safety
+/⚠️  EXPERIMENTAL: This uses a GHC-adapted version of mimalloc. See "Mimalloc" for details./
 
-* Functions like 'mallocByteString' and 'zallocByteString' use the default heap
+== Thread Safety and Capabilities
+
+* Functions like 'mallocByteString' and 'zallocByteString' use the capability-based default heap
   and work correctly with 'forkIO' (no 'forkOS' required)
-* Functions like 'heapMallocByteString' use custom heaps and /require 'forkOS'/
-  (see "Mimalloc.Heap" for details on heap thread-safety requirements)
+* ByteStrings are automatically allocated from the current capability's heap
+* Functions like 'heapMallocByteString' use custom heaps which are /capability-local/
+  (see "Mimalloc.Heap" for details on capability-local heap requirements)
 
 == Usage
 

@@ -60,8 +60,13 @@ library:
   source-dirs: src
   c-sources:
     - cbits/static.c
+    - cbits/ghc-rts-integration.c
   include-dirs:
     - cbits/include
+  cc-options:
+    - -DMI_USE_GHC_CAPABILITIES
+  ghc-options:
+    - -threaded
 
 tests:
   mimalloc-test:
@@ -73,3 +78,8 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - mimalloc
+    - tasty
+    - tasty-hunit
+    - tasty-quickcheck
+    - async
+    - QuickCheck

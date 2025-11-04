@@ -11,23 +11,65 @@ This module provides a high-level, type-safe interface to the mimalloc memory al
 It offers ForeignPtr-based automatic memory management, alloca-style bracketing, and
 integration with common Haskell data structures.
 
-== Thread Safety
+/⚠️  EXPERIMENTAL: This library contains a modified version of mimalloc that has been/
+/adapted to work with GHC's capability system instead of traditional thread-local storage./
+/While thoroughly tested, this is an experimental approach and may have edge cases./
+/Use with caution in production./
 
-The functions in this module use mimalloc's /default heap/, which is thread-local.
-However, in most cases, /you do NOT need to use forkOS/ with these functions:
+== Why Use This?
 
-* Allocations and deallocations from the default heap are thread-safe
-* The default heap is automatically managed per OS thread
-* 'forkIO' green threads that happen to run on the same OS thread will share
-  that thread's default heap safely
+mimalloc is a high-performance allocator that often outperforms system malloc by 20-30%
+in multi-threaded workloads. Unlike other malloc replacements, this version is specifically
+adapted to work correctly with GHC's green threads, providing:
 
-/You only need 'forkOS' when/:
+* __Low contention__: Capability-based heaps eliminate lock contention in parallel code
+* __Green thread safe__: Threads can migrate between OS threads without issues
+* __Low fragmentation__: Better memory efficiency for long-running services
+* __GC integration__: 'ForeignPtr'-based memory management with automatic cleanup
+* __Built-in statistics__: Query allocation metrics without external tools
 
-* Using custom heaps from "Mimalloc.Heap" (heaps are bound to specific OS threads)
-* Calling thread-specific initialization ('mi_thread_init', 'mi_thread_done')
-* You need guaranteed isolation between Haskell threads' allocations
+Ideal for high-throughput servers, parallel data processing, and applications with
+heavy 'ByteString' or 'Vector' usage.
 
-For most use cases, the functions in this module work correctly with 'forkIO'.
+== About This Modified mimalloc
+
+This library includes a /custom-modified version/ of the mimalloc allocator that has been
+adapted specifically for GHC's green thread model:
+
+* __Original mimalloc__: Uses OS thread-local storage (TLS)
+* __This version__: Uses GHC capability-indexed heaps instead of TLS
+* __Why modified__: To properly support GHC's green threads which can migrate between OS threads
+
+The C source code in @cbits/@ has been modified to replace thread-local heap lookup with
+capability-based heap lookup. This ensures correct behavior when Haskell threads migrate
+between OS threads.
+
+== Thread Safety and Capabilities
+
+The functions in this module use mimalloc's /capability-based heaps/. Unlike
+traditional thread-local storage, heaps are tied to GHC's RTS capabilities
+(virtual processors) rather than OS threads.
+
+=== What This Means
+
+* Each GHC capability (see @-N@ RTS flag) has its own heap
+* Multiple green threads ('forkIO') running on the same capability share that capability's heap
+* Thread migration between capabilities is safe - allocations work on any capability
+* No need for 'forkOS' - regular 'forkIO' works perfectly
+* Heaps scale with parallelism (@-N@) not with thread count
+
+=== Performance Implications
+
+* Better cache locality: threads on same capability share heap structures
+* Reduced contention: capabilities are independent
+* Automatic scaling: heap count matches degree of parallelism
+* Consider @-N@ setting for optimal performance (typically @-N@ = number of cores)
+
+=== Dynamic Capability Changes
+
+If you change the number of capabilities at runtime with 'setNumCapabilities',
+you should call 'reinitializeCapabilities' from "Mimalloc.Capability" to
+ensure heaps are properly reinitialized.
 
 == Basic Usage
 

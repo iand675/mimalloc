@@ -9,6 +9,8 @@ Maintainer  : ian@iankduncan.com
 This module provides functions for querying mimalloc statistics and
 inspecting heap state.
 
+/⚠️  EXPERIMENTAL: This uses a GHC-adapted version of mimalloc. See "Mimalloc" for details./
+
 == Usage
 
 >>> stats <- getProcessInfo
@@ -110,8 +112,8 @@ printStats = mi_stats_print nullPtr
 resetStats :: IO ()
 resetStats = mi_stats_reset
 
--- | Merge thread-local statistics into the main statistics.
--- This is useful for getting accurate statistics in multi-threaded programs.
+-- | Merge capability-local statistics into the main statistics.
+-- This is useful for getting accurate statistics in programs using multiple capabilities.
 --
 -- >>> mergeStats
 mergeStats :: IO ()

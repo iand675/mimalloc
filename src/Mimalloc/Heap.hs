@@ -14,21 +14,41 @@ This module provides scoped heap management using RankNTypes to ensure
 heap-allocated memory cannot escape its scope. This provides better safety
 for working with custom mimalloc heaps.
 
-== Thread Safety and forkOS Requirement
+/⚠️  EXPERIMENTAL: This library uses a modified version of mimalloc adapted for GHC./
+/Custom heaps in this implementation are capability-local, not thread-local./
+/See "Mimalloc" module documentation for details./
 
-/CRITICAL/: Heaps in mimalloc are thread-local, meaning each heap is bound to
-a specific OS thread. A heap can only be used for (re)allocation in the OS
-thread that created it. Any allocated blocks can be freed by any other thread.
+== Thread Safety and Capability-Based Heaps
 
-/You MUST use 'Control.Concurrent.forkOS' (not 'forkIO') when working with heaps/:
+In this library, custom heaps created with 'mi_heap_new' are /capability-local/
+rather than thread-local. This means:
 
-* Haskell's green threads ('forkIO') can migrate between OS threads
-* Multiple green threads may share the same OS thread
-* This violates mimalloc's thread-local heap invariants
-* Use 'forkOS' to ensure your Haskell thread is bound to a dedicated OS thread
+=== Capability-Local Behavior
 
-For long-running OS threads, consider creating a dedicated heap per thread
-using 'forkOS' with 'withHeap'.
+* A heap created on capability N can only be used for allocation on capability N
+* Multiple green threads on the same capability can share the heap
+* Thread migration between capabilities means you cannot use the heap on the new capability
+* Freed blocks can be freed from any capability (thread-safe)
+
+=== Usage Recommendations
+
+* For simple allocations, use the default heap from "Mimalloc" (works on all capabilities)
+* For custom heaps: create one heap per capability if needed
+* 'forkIO' is safe but be aware the thread may migrate to different capabilities
+* If you need heap-specific allocation with 'forkIO', use 'runOnCapability' to ensure
+  execution on the correct capability
+* Custom heaps are most useful for:
+  - Isolating allocation pools by object type
+  - Custom collection/destruction strategies
+  - Arena-style allocation patterns
+
+=== Migration from Thread-Local Model
+
+If migrating code that assumed thread-local heaps:
+
+* Replace 'forkOS' with 'forkIO' for better performance
+* Use capability-aware heap management from "Mimalloc.Capability"
+* Consider whether you actually need custom heaps (default heap may suffice)
 
 == Basic Usage
 

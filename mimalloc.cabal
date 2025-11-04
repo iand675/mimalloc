@@ -24,7 +24,6 @@ description:    High-level Haskell bindings to mimalloc, a fast, compact general
                 * Support for aligned allocations
                 * Custom heap management for fine-grained control
                 * Integration with ByteString and Vector
-                * Thread-safe allocation with comprehensive documentation on thread-local semantics
                 * Statistics and introspection capabilities
                 .
                 For more information about mimalloc, see <https://github.com/microsoft/mimalloc>
@@ -55,6 +54,7 @@ library
   exposed-modules:
       Mimalloc
       Mimalloc.ByteString
+      Mimalloc.Capability
       Mimalloc.Heap
       Mimalloc.Primitive
       Mimalloc.Stats
@@ -65,11 +65,13 @@ library
       Paths_mimalloc
   hs-source-dirs:
       src
-  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded
+  cc-options: -DMI_USE_GHC_CAPABILITIES
   include-dirs:
       cbits/include
   c-sources:
       cbits/static.c
+      cbits/ghc-rts-integration.c
   build-depends:
       base >=4.7 && <5
     , bytestring
@@ -88,9 +90,14 @@ test-suite mimalloc-test
       test
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      base >=4.7 && <5
+      QuickCheck
+    , async
+    , base >=4.7 && <5
     , bytestring
     , mimalloc
     , primitive
+    , tasty
+    , tasty-hunit
+    , tasty-quickcheck
     , vector
   default-language: Haskell2010

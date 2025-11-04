@@ -146,7 +146,9 @@ mi_threadid_t _mi_thread_id(void) mi_attr_noexcept {
 }
 
 // the thread-local default heap for allocation
+#ifndef MI_USE_GHC_CAPABILITIES
 mi_decl_thread mi_heap_t* _mi_heap_default = (mi_heap_t*)&_mi_heap_empty;
+#endif
 
 extern mi_decl_hidden mi_heap_t _mi_heap_main;
 
@@ -236,6 +238,12 @@ static void mi_heap_main_init(void) {
     mi_lock_init(&mi_subproc_default.abandoned_os_lock);
     mi_lock_init(&mi_subproc_default.abandoned_os_visit_lock);
     _mi_heap_guarded_init(&_mi_heap_main);
+    
+#ifdef MI_USE_GHC_CAPABILITIES
+    // Initialize capability-based heaps
+    unsigned int num_caps = _mi_ghc_get_num_capabilities();
+    _mi_init_capability_heaps(num_caps);
+#endif
   }
 }
 
@@ -377,6 +385,41 @@ void _mi_thread_data_collect(void) {
 // Initialize the thread local default heap, called from `mi_thread_init`
 static bool _mi_thread_heap_init(void) {
   if (mi_heap_is_initialized(mi_prim_get_default_heap())) return true;
+  
+#ifdef MI_USE_GHC_CAPABILITIES
+  // For capability-based heaps, check if current capability's heap is initialized
+  unsigned int cap = _mi_ghc_get_capability();
+  if (cap >= MI_MAX_CAPABILITIES) {
+    cap = 0; // fallback to main heap
+  }
+  
+  mi_heap_t* cap_heap = _mi_heaps_by_capability[cap];
+  
+  // If this capability's heap is already initialized (and not empty), use it
+  if (cap_heap != NULL && cap_heap != &_mi_heap_empty) {
+    return true;
+  }
+  
+  // Initialize heap for this capability
+  if (cap == 0) {
+    // Capability 0 uses the statically allocated main heap
+    mi_heap_main_init();
+    _mi_heaps_by_capability[0] = &_mi_heap_main;
+  }
+  else {
+    // For other capabilities, allocate a new heap
+    mi_thread_data_t* td = mi_thread_data_zalloc();
+    if (td == NULL) return false;
+
+    mi_tld_t*  tld = &td->tld;
+    mi_heap_t* heap = &td->heap;
+    _mi_tld_init(tld, heap);  // must be before `_mi_heap_init`
+    _mi_heap_init(heap, tld, _mi_arena_id_none(), false /* can reclaim */, (uint8_t)cap /* use capability as tag */);
+    _mi_heaps_by_capability[cap] = heap;
+  }
+  
+#else
+  // Traditional TLS-based initialization
   if (_mi_is_main_thread()) {
     // mi_assert_internal(_mi_heap_main.thread_id != 0);  // can happen on freeBSD where alloc is called before any initialization
     // the main heap is statically allocated
@@ -395,6 +438,8 @@ static bool _mi_thread_heap_init(void) {
     _mi_heap_init(heap, tld, _mi_arena_id_none(), false /* can reclaim */, 0 /* default tag */);
     _mi_heap_set_default_direct(heap);
   }
+#endif
+  
   return false;
 }
 
@@ -542,6 +587,15 @@ void _mi_thread_done(mi_heap_t* heap)
 
 void _mi_heap_set_default_direct(mi_heap_t* heap)  {
   mi_assert_internal(heap != NULL);
+  
+#ifdef MI_USE_GHC_CAPABILITIES
+  // For capability-based heaps, store in the capability array
+  unsigned int cap = _mi_ghc_get_capability();
+  if (cap < MI_MAX_CAPABILITIES) {
+    _mi_heaps_by_capability[cap] = heap;
+  }
+#else
+  // Traditional TLS-based storage
   #if defined(MI_TLS_SLOT)
   mi_prim_tls_slot_set(MI_TLS_SLOT,heap);
   #elif defined(MI_TLS_PTHREAD_SLOT_OFS)
@@ -555,6 +609,7 @@ void _mi_heap_set_default_direct(mi_heap_t* heap)  {
   // ensure the default heap is passed to `_mi_thread_done`
   // setting to a non-NULL value also ensures `mi_thread_done` is called.
   _mi_prim_thread_associate_default_heap(heap);
+#endif
 }
 
 void mi_thread_set_in_threadpool(void) mi_attr_noexcept {
