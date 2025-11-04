@@ -1,0 +1,96 @@
+cabal-version: 2.2
+
+-- This file has been generated from package.yaml by hpack version 0.38.1.
+--
+-- see: https://github.com/sol/hpack
+
+name:           mimalloc
+version:        0.1.0.0
+synopsis:       Haskell bindings to the mimalloc memory allocator
+description:    High-level Haskell bindings to mimalloc, a fast, compact general-purpose 
+                allocator with excellent performance characteristics.
+                .
+                Mimalloc is a drop-in replacement for malloc that provides:
+                .
+                * Free list sharding for reduced lock contention in multi-threaded programs
+                * Bounded worst-case allocation times with constant-time operations
+                * Excellent security features including free-list encoding and padding
+                * Small memory overhead and minimal fragmentation
+                * First-class heaps for custom allocation strategies
+                .
+                This library provides:
+                .
+                * Type-safe ForeignPtr-based allocations with automatic memory management
+                * Support for aligned allocations
+                * Custom heap management for fine-grained control
+                * Integration with ByteString and Vector
+                * Thread-safe allocation with comprehensive documentation on thread-local semantics
+                * Statistics and introspection capabilities
+                .
+                For more information about mimalloc, see <https://github.com/microsoft/mimalloc>
+category:       System, Memory
+homepage:       https://github.com/iand675/mimalloc#readme
+bug-reports:    https://github.com/iand675/mimalloc/issues
+author:         Ian Duncan
+maintainer:     ian@iankduncan.com
+copyright:      2025 Ian Duncan
+license:        BSD-3-Clause
+license-file:   LICENSE
+build-type:     Simple
+extra-source-files:
+    README.md
+    CHANGELOG.md
+    cbits/include/mimalloc.h
+    cbits/include/mimalloc/atomic.h
+    cbits/include/mimalloc/internal.h
+    cbits/include/mimalloc/prim.h
+    cbits/include/mimalloc/track.h
+    cbits/include/mimalloc/types.h
+
+source-repository head
+  type: git
+  location: https://github.com/iand675/mimalloc
+
+library
+  exposed-modules:
+      Mimalloc
+      Mimalloc.ByteString
+      Mimalloc.Heap
+      Mimalloc.Primitive
+      Mimalloc.Stats
+      Mimalloc.Vector
+  other-modules:
+      Paths_mimalloc
+  autogen-modules:
+      Paths_mimalloc
+  hs-source-dirs:
+      src
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
+  include-dirs:
+      cbits/include
+  c-sources:
+      cbits/static.c
+  build-depends:
+      base >=4.7 && <5
+    , bytestring
+    , primitive
+    , vector
+  default-language: Haskell2010
+
+test-suite mimalloc-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      Paths_mimalloc
+  autogen-modules:
+      Paths_mimalloc
+  hs-source-dirs:
+      test
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , bytestring
+    , mimalloc
+    , primitive
+    , vector
+  default-language: Haskell2010

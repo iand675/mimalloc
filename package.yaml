@@ -1,0 +1,75 @@
+name:                mimalloc
+version:             0.1.0.0
+github:              "iand675/mimalloc"
+license:             BSD-3-Clause
+author:              "Ian Duncan"
+maintainer:          "ian@iankduncan.com"
+copyright:           "2025 Ian Duncan"
+
+synopsis:            Haskell bindings to the mimalloc memory allocator
+category:            System, Memory
+homepage:            https://github.com/iand675/mimalloc#readme
+bug-reports:         https://github.com/iand675/mimalloc/issues
+
+extra-source-files:
+- README.md
+- CHANGELOG.md
+- cbits/include/mimalloc.h
+- cbits/include/mimalloc/*.h
+
+description: |
+  High-level Haskell bindings to mimalloc, a fast, compact general-purpose 
+  allocator with excellent performance characteristics.
+  
+  Mimalloc is a drop-in replacement for malloc that provides:
+  
+  * Free list sharding for reduced lock contention in multi-threaded programs
+  * Bounded worst-case allocation times with constant-time operations
+  * Excellent security features including free-list encoding and padding
+  * Small memory overhead and minimal fragmentation
+  * First-class heaps for custom allocation strategies
+  
+  This library provides:
+  
+  * Type-safe ForeignPtr-based allocations with automatic memory management
+  * Support for aligned allocations
+  * Custom heap management for fine-grained control
+  * Integration with ByteString and Vector
+  * Statistics and introspection capabilities
+  
+  For more information about mimalloc, see <https://github.com/microsoft/mimalloc>
+
+dependencies:
+- base >= 4.7 && < 5
+- bytestring
+- vector
+- primitive
+
+ghc-options:
+- -Wall
+- -Wcompat
+- -Widentities
+- -Wincomplete-record-updates
+- -Wincomplete-uni-patterns
+- -Wmissing-export-lists
+- -Wmissing-home-modules
+- -Wpartial-fields
+- -Wredundant-constraints
+
+library:
+  source-dirs: src
+  c-sources:
+    - cbits/static.c
+  include-dirs:
+    - cbits/include
+
+tests:
+  mimalloc-test:
+    main:                Spec.hs
+    source-dirs:         test
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - mimalloc
